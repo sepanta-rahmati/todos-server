@@ -1,4 +1,15 @@
 const fs = require('fs');
+
+var Datastore = require('nedb')
+    , db = new Datastore({ filename: 'data.db' });
+db.loadDatabase(function (err) {    // Callback is optional
+    // Now commands will be executed
+    if (err) {
+        console.error(err);
+        process.exit();
+    }
+});
+
 const express = require('express');
 const app = express();
 const port = 3000;
@@ -8,9 +19,14 @@ app.use(express.json());
 
 app.get('/', (req, res) => {
     try {
-        const data = read();
-        res.send(data);
+        db.find({}, (err, docs) => {
+            if (err) {
+                throw err;
+            } else {
+                res.status(200).send(docs)
+            }
 
+        })
     } catch (error) {
         console.error(error);
         res.status(500).send(error)
@@ -20,13 +36,13 @@ app.get('/', (req, res) => {
 
 app.post('/', (req, res) => {
     try {
-        const todo = req.body;
-        todo.id = uuidv4();
-        let data = read();
-        data.push(todo);
-        save(data);
-        res.status(200).send(todo)
-
+        db.insert(req.body, (err, todo) => {
+            if (err) {
+                throw err;
+            } else {
+                res.status(200).send(todo)
+            }
+        })
     } catch (error) {
         console.error(error);
         res.status(500).send(error)
@@ -36,13 +52,13 @@ app.post('/', (req, res) => {
 app.put('/:id', (req, res) => {
     try {
         // find id in data and replace it
-        let id = req.params.id;
-        let data = read();
-        let todo = data.find(d => d.id == id);
-        todo.text = req.body.text;
-        todo.done = req.body.done;
-        save(data);
-        res.status(200).send(todo)
+        db.update({ _id: req.params.id }, req.body, {}, (err) => {
+            if (err) {
+                throw err;
+            } else {
+                res.sendStatus(200);
+            }
+        })
     } catch (error) {
         console.error(error);
         res.status(500).send(error)
@@ -55,17 +71,14 @@ app.patch('/:id', (req, res) => {
         // find id in data and patch it
         let id = req.params.id;
         if (id && id != 'undefined') {
-            let data = read();
-            let todo = data.find(d => d.id == id);
-            if (req.body.text) {
-                todo.text = req.body.text;
-            }
 
-            if (req.body.done) {
-                todo.done = req.body.done;
-            }
-            save(data);
-            res.status(200).send(todo)
+            db.update({ _id: id }, { $set: req.body }, {}, (err) => {
+                if (err) {
+                    throw err;
+                } else {
+                    res.sendStatus(200);
+                }
+            })
         } else {
             res.status(400).send('Invalid ID')
         }
@@ -78,40 +91,20 @@ app.patch('/:id', (req, res) => {
 
 app.delete('/:id', (req, res) => {
     try {
-        // find id in data and remove it
-        let id = req.params.id;
-        let data = read();
-        data = data.filter(d => d.id != id);
-        save(data);
-        res.end();
+        db.remove({ _id: req.params.id }, {}, (err) => {
+            if (err) {
+                throw err;
+            } else {
+                res.sendStatus(200);
+            }
+        })
     } catch (error) {
         console.error(error);
         res.status(500).send(error)
     }
-
 })
 
 
 app.listen(port, () => {
     console.log(`Example app listening on port ${port}`)
 })
-
-function save(data) {
-    fs.writeFileSync('./data.json', JSON.stringify(data));
-}
-
-function read() {
-    if (!fs.existsSync('./data.json')) {
-        save([]);
-        return [];
-    } else {
-        return require('./data.json');
-    }
-}
-
-
-function uuidv4() {
-    return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
-        (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
-    );
-}
