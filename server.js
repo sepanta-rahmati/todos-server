@@ -1,7 +1,5 @@
-const fs = require('fs');
-
-var Datastore = require('nedb')
-    , db = new Datastore({ filename: 'data.db' });
+var Datastore = require('nedb');
+var db = new Datastore({ filename: 'data.db' });
 db.loadDatabase(function (err) {    // Callback is optional
     // Now commands will be executed
     if (err) {
@@ -69,19 +67,13 @@ app.put('/:id', (req, res) => {
 app.patch('/:id', (req, res) => {
     try {
         // find id in data and patch it
-        let id = req.params.id;
-        if (id && id != 'undefined') {
-
-            db.update({ _id: id }, { $set: req.body }, {}, (err) => {
-                if (err) {
-                    throw err;
-                } else {
-                    res.sendStatus(200);
-                }
-            })
-        } else {
-            res.status(400).send('Invalid ID')
-        }
+        db.update({ _id: req.params.id }, { $set: req.body }, {}, (err) => {
+            if (err) {
+                throw err;
+            } else {
+                res.sendStatus(200);
+            }
+        })
     } catch (error) {
         console.error(error);
         res.status(500).send(error)
@@ -106,5 +98,5 @@ app.delete('/:id', (req, res) => {
 
 
 app.listen(port, () => {
-    console.log(`Example app listening on port ${port}`)
+    console.log(`Todo server app listening on port ${port}`)
 })
